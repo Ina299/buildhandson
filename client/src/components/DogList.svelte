@@ -7,14 +7,37 @@
         breed: string;
     }
 
+    interface Breed {
+        id: number;
+        name: string;
+    }
+
     export let dogs: Dog[] = [];
     let loading = true;
     let error: string | null = null;
+    let breeds: Breed[] = [];
+    let selectedBreed = "";
+    let showAvailableOnly = false;
+
+    const fetchBreeds = async () => {
+        try {
+            const response = await fetch('/api/breeds');
+            if(response.ok) {
+                breeds = await response.json();
+            }
+        } catch (err) {
+            console.error('Failed to fetch breeds:', err);
+        }
+    };
 
     const fetchDogs = async () => {
         loading = true;
         try {
-            const response = await fetch('/api/dogs');
+            const params = new URLSearchParams();
+            if (selectedBreed) params.append('breed', selectedBreed);
+            if (showAvailableOnly) params.append('status', 'AVAILABLE');
+            
+            const response = await fetch(`/api/dogs?${params}`);
             if(response.ok) {
                 dogs = await response.json();
             } else {
@@ -27,12 +50,41 @@
         }
     };
 
+    $: {
+        // Reactive statement to refetch when filters change
+        if (typeof selectedBreed !== 'undefined' || typeof showAvailableOnly !== 'undefined') {
+            fetchDogs();
+        }
+    }
+
     onMount(() => {
+        fetchBreeds();
         fetchDogs();
     });
 </script>
 
 <div>
+    <div class="mb-6 flex flex-col sm:flex-row gap-4">
+        <select
+            bind:value={selectedBreed}
+            class="bg-slate-800 text-slate-100 rounded-lg px-4 py-2 border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+        >
+            <option value="">All Breeds</option>
+            {#each breeds as breed}
+                <option value={breed.name}>{breed.name}</option>
+            {/each}
+        </select>
+        
+        <label class="flex items-center gap-2 text-slate-100">
+            <input
+                type="checkbox"
+                bind:checked={showAvailableOnly}
+                class="w-4 h-4 rounded border-slate-700 bg-slate-800 text-blue-500 focus:ring-blue-500"
+            >
+            Show available dogs only
+        </label>
+    </div>
+
     <h2 class="text-2xl font-medium mb-6 text-slate-100">Available Dogs</h2>
     
     {#if loading}
